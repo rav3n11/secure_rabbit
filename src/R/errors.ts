@@ -93,35 +93,7 @@ export const Errors: any = {
     ErrorCode.ROUTE_ERROR,
     404
   ),
-  RESOURCE_NOT_FOUND: new _Error("Media not found.", ErrorCode.FILE_ERROR, 404),
-  MEDIA_TYPE_NOT_SUPPORTED: new _Error(
-    `File type not supported.`,
-    ErrorCode.REQUEST_ERROR,
-    403
-  ),
-  MEDIA_TOO_LARGE: new _Error(
-    "File is too large",
-    ErrorCode.REQUEST_ERROR,
-    403
-  ),
-  ALLOWED_SIMULTANEOUS_UPLOADS_EXCEEDED: new _Error(
-    "File array exceeds the allowed size",
-    ErrorCode.REQUEST_ERROR,
-    403
-  ),
-  NO_NOTIFICATIONS_FOUND: new _Error(
-    "No notifications found.",
-    ErrorCode.ROUTE_ERROR,
-    404
-  ),
-  CAN_NOT_UPDATE_FILE_RECORD: new _Error(
-    "Could not update file record.",
-    ErrorCode.DATABASE_ERROR
-  ),
-  CAN_NOT_REMOVE_FILE_RECORD: new _Error(
-    "Could not remove file record.",
-    ErrorCode.DATABASE_ERROR
-  ),
+  EVENT_NOT_FOUND: new _Error("Event not found", ErrorCode.ROUTE_ERROR, 404),
   FORBIDDEN_UPDATE: new _Error("Forbidden update.", ErrorCode.AUTH_ERROR, 403),
   FORBIDDEN_DELETE: new _Error("Forbidden delete.", ErrorCode.AUTH_ERROR, 403),
   LOGS_NOT_FOUND: new _Error("No logs were found.", ErrorCode.ROUTE_ERROR, 404),

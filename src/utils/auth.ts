@@ -58,9 +58,9 @@ export async function authMiddleWare(
   let payload = await verifyToken(token);
   if (!payload) throw R.errors.UNAUTHORIZED;
 
-  let session = await db.session.findUnique({
+  let session = await db.sessions.findUnique({
     where: { id: payload.id },
-    include: { user: true },
+    include: { man: true },
   });
   if (!session) throw R.errors.USER_NOT_FOUND;
 

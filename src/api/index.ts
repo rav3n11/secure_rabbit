@@ -4,20 +4,19 @@ import { cleanseObject, getDay } from "../utils";
 import { generateToken, tokenExp } from "../utils/auth";
 import { R } from "../R";
 import { PrismaClient, Role } from "@prisma/client";
-import { getUploadMiddleware, handleUploadError } from "../utils/upload";
-import path from "path";
-import sharp from "sharp";
-import multer from "multer";
 
 export const testRouter = Router();
 export const signinRouter = Router();
 export const signupRouter = Router();
 export const router = Router();
-export const db = new PrismaClient({ log: ["query", "info", "warn", "error"] });
-const upload: multer.Multer = getUploadMiddleware();
+export const db = new PrismaClient();
 
 testRouter.get("/", async function (req: Request, res: Response) {
   res.send(req.body);
+});
+
+testRouter.get("/lala", (req: Request, res: Response) => {
+  res.send({ lala: "lala" });
 });
 
 signupRouter.post("/", async function (req: Request, res: Response) {
@@ -25,7 +24,7 @@ signupRouter.post("/", async function (req: Request, res: Response) {
   const { password } = req.body;
   delete row.password;
   const passwordHash = bcrypt.hashSync(password, 10);
-  const user = await db.consumer.create({
+  const user = await db.mans.create({
     data: {
       passwordHash,
       ...row,
@@ -61,23 +60,23 @@ signupRouter.post("/", async function (req: Request, res: Response) {
 });
 
 signinRouter.post("/", async function (req: Request, res: Response) {
-  const { identifier, password } = req.body;
+  const { username, password } = req.body;
 
-  const user = await db.consumer.findFirst({
+  const man = await db.mans.findFirst({
     where: {
-      OR: [{ email: identifier }, { username: identifier }],
+      username: username,
     },
   });
-  if (!user) throw R.errors.USER_NOT_FOUND;
+  if (!man) throw R.errors.USER_NOT_FOUND;
 
-  const same: boolean = bcrypt.compareSync(password, user.passwordHash);
+  const same: boolean = bcrypt.compareSync(password, man.passwordHash);
   if (!same) throw R.errors.CREDENTIAL_INCORRECT;
 
-  const session = await db.session.create({
+  const session = await db.sessions.create({
     data: {
       active: true,
       exp: new Date(Date.now() + getDay(tokenExp) * 8.64e7),
-      userId: user.id,
+      manId: man.id,
     },
   });
 
@@ -85,30 +84,11 @@ signinRouter.post("/", async function (req: Request, res: Response) {
   res.status(201).send({
     data: {
       token: `Bearer ${token}`,
-      profile: cleanseObject(user, {
+      profile: cleanseObject(man, {
         exclude: ["passwordHash", "verified", "updatedAt", "createdAt"],
       }),
     },
   });
-});
-
-router.patch("/pass", async function (req: Request, res: Response) {
-  // @ts-ignore
-  const { session } = req;
-  const { password, newPassword } = req.body;
-
-  const same: boolean = bcrypt.compareSync(password, session.user.passwordHash);
-  if (!same) throw R.errors.CREDENTIAL_INCORRECT;
-
-  session.user.passwordHash = bcrypt.hashSync(newPassword, 10);
-  await db.consumer.update({
-    where: { id: session.user.id },
-    data: {
-      passwordHash: bcrypt.hashSync(newPassword, 10),
-    },
-  });
-
-  res.status(204).end();
 });
 
 router.delete("/signout", async function (req: Request, res: Response) {
@@ -117,252 +97,77 @@ router.delete("/signout", async function (req: Request, res: Response) {
     session: { id },
   } = req;
 
-  await db.session.delete({ where: { id } });
+  await db.sessions.delete({ where: { id } });
 
   res.status(204).end();
 });
 
-router.get("/consumer", async function (req: Request, res: Response) {
+router.post("/event", async function (req: Request, res: Response) {
+  const { title, startDate, endDate, public: pubic } = req.body;
+
   const {
     // @ts-ignore
     session: {
-      user: { role },
+      man: { id, role },
     },
   } = req;
-  const { id, limit, createdAt, searchString, all } = req.query;
-  const filterCondition: any = {};
+  if (pubic && role !== Role.ADMIN) throw R.errors.UNAUTHORIZED_RESOURCE_ACCESS;
 
-  if (all) filterCondition["NOT"] = { role: Role.OWNER };
-  else
-    filterCondition["NOT"] = {
-      OR: [{ role: Role.ADMIN }, { role: Role.OWNER }],
-    };
-
-  console.log(`${id} ${limit} ${createdAt} ${searchString}`);
-
-  if (role !== Role.ADMIN && role !== Role.OWNER)
-    throw R.errors.UNAUTHORIZED_RESOURCE_ACCESS;
-
-  if (createdAt)
-    filterCondition.createdAt = { gt: new Date(createdAt as string) };
-
-  if (id) filterCondition.id = id;
-  else if (searchString) {
-    const condition: any = {
-      contains: `%${searchString}%`,
-    };
-
-    filterCondition["OR"] = ["username", "email"].map((column) => {
-      return { [column]: condition };
-    });
-  }
-
-  const consumers = await db.consumer.findMany({
-    where: filterCondition,
-    take: Number.parseInt(limit as string) || 30,
+  const event = await db.events.create({
+    select: {
+      id: true,
+    },
+    data: {
+      manId: id,
+      title,
+      startDate,
+      endDate,
+      public: !!pubic,
+    },
   });
-
-  if (!consumers.length) throw R.errors.USER_NOT_FOUND;
-
-  res.status(200).send({
-    data: consumers.map((consumer) => {
-      return cleanseObject(consumer, {
-        exclude: ["passwordHash", "verified", "updatedAt", "createdAt"],
-      });
-    }),
+  res.status(201).send({
+    event,
   });
 });
-
-router.get("/consumer/me", async function (req: Request, res: Response) {
-  const {
-    // @ts-ignore
-    session: { user },
-  } = req;
-
-  res.status(200).send({
-    data: cleanseObject(user, {
-      exclude: ["passwordHash", "verified", "updatedAt", "createdAt"],
-    }),
-  });
-});
-
-router.get("/admin", async function (req: Request, res: Response) {
+router.get("/event", async function (req: Request, res: Response) {
   const {
     // @ts-ignore
     session: {
-      user: { role },
+      man: { id },
     },
   } = req;
-  const { id, limit, createdAt, searchString } = req.query;
-  const filterCondition: any = { role: Role.ADMIN };
 
-  if (role !== Role.OWNER) throw R.errors.UNAUTHORIZED_RESOURCE_ACCESS;
-
-  if (createdAt)
-    filterCondition.createdAt = { gt: new Date(createdAt as string) };
-
-  if (id) filterCondition.id = id;
-  else if (searchString) {
-    const condition: any = { contains: `%${searchString}%` };
-
-    filterCondition["OR"] = ["username", "email"].map((column) => {
-      return { [column]: condition };
-    });
-  }
-
-  const admins = await db.consumer.findMany({
-    where: filterCondition,
-    take: Number.parseInt(limit as string) || 30,
+  const eventsList = await db.events.findMany({
+    where: {
+      OR: [
+        {
+          manId: id,
+        },
+        {
+          public: true,
+        },
+      ],
+    },
   });
-
-  if (!admins.length) throw R.errors.USER_NOT_FOUND;
-
   res.status(200).send({
-    data: admins.map((admin) => {
-      return cleanseObject(admin, {
-        exclude: ["passwordHash", "verified", "updatedAt", "createdAt"],
-      });
-    }),
+    eventsList,
   });
 });
+router.delete("/event", async function (req: Request, res: Response) {
+  const { eventId } = req.query;
 
-router.patch("/admin/verify", async function (req: Request, res: Response) {
   const {
-    // @ts-ignore
-    session: {
-      user: { role },
+    man: { id },
+    //@ts-ignore
+  } = req.session;
+
+  const deleteResult = await db.events.deleteMany({
+    where: {
+      id: eventId as string,
+      manId: id,
     },
-    query: { id },
-  } = req;
-
-  if (role !== Role.OWNER) throw R.errors.UNAUTHORIZED_RESOURCE_ACCESS;
-
-  const updateResult = await db.consumer.update({
-    where: { id: id as string },
-    data: { verified: true, role: Role.ADMIN },
   });
-
-  if (!updateResult) throw R.errors.DATABASE_ERROR;
+  if (!deleteResult.count) throw R.errors.EVENT_NOT_FOUND;
 
   res.status(204).end();
-});
-
-router.patch("/admin/remove", async function (req: Request, res: Response) {
-  const {
-    // @ts-ignore
-    session: {
-      user: { role },
-    },
-    query: { id },
-  } = req;
-
-  if (role !== Role.OWNER) throw R.errors.UNAUTHORIZED_RESOURCE_ACCESS;
-
-  const updateResult = await db.consumer.update({
-    where: { id: id as string },
-    data: { verified: false, role: Role.USER },
-  });
-
-  if (!updateResult) throw R.errors.DATABASE_ERROR;
-
-  res.status(204).end();
-});
-
-router.post(
-  "/upload",
-  async function (req: Request, res: Response, next: NextFunction) {
-    upload.single("file")(req, res, async function (err) {
-      try {
-        await handleUploadError(err);
-
-        //@ts-ignore
-        const { file, session } = req;
-        let { sizes } = req.body;
-        const { dir, name, ext } = path.parse(file?.path as string);
-        const returnables: any = [];
-
-        for (const size of JSON.parse(sizes)) {
-          if (Array.isArray(size)) {
-            const outputPath = `${dir}/${name}_${size[0]}_x_${size[1]}${ext}`;
-            await sharp(file?.path)
-              .resize(size[0] as number, size[1] as number)
-              .toFile(outputPath);
-
-            returnables.push({
-              path: outputPath,
-              name: `${name}_${size[0]}_x_${size[1]}`,
-            });
-          } else {
-            const outputPath = `${dir}/${name}_${size}${ext}`;
-            await sharp(file?.path)
-              .resize(size as number)
-              .toFile(outputPath);
-
-            returnables.push({ path: outputPath, name: `${name}_${size}` });
-          }
-        }
-
-        await db.consumer.update({
-          where: { id: session.user.id },
-          data: { howManyPerMonth: { increment: 1 } },
-        });
-
-        // @ts-ignore
-        res.zip({ files: returnables, filename: `${file?.originalname}` });
-      } catch (err) {
-        next(err);
-      }
-    });
-  }
-);
-
-router.get("/log", async function (req: Request, res: Response) {
-  const {
-    // @ts-ignore
-    session: {
-      user: { role },
-    },
-  } = req;
-  const { id, limit, createdAt, searchString } = req.query;
-  const filterCondition: any = {};
-
-  console.log(`${id} ${limit} ${createdAt} ${searchString}`);
-
-  if (role !== Role.ADMIN && role !== Role.OWNER)
-    throw R.errors.UNAUTHORIZED_RESOURCE_ACCESS;
-
-  if (createdAt)
-    filterCondition.createdAt = { lt: new Date(createdAt as string) };
-  if (id) filterCondition.id = id;
-  if (searchString) {
-    const condition: any = {
-      contains: `%${searchString}%`,
-      mode: "insensitive",
-    };
-
-    filterCondition["OR"] = ["ip", "method", "route", "useragent"].map(
-      (column) => {
-        return { [column]: condition };
-      }
-    );
-  }
-
-  console.dir(filterCondition);
-
-  const logs = await db.log.findMany({
-    where: filterCondition,
-    include: {
-      blame: {
-        select: { username: true, email: true, howManyPerMonth: true },
-      },
-    },
-    take: Number.parseInt(limit as string) || 30,
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-
-  if (!logs.length) throw R.errors.LOGS_NOT_FOUND;
-
-  res.status(200).send({ data: logs });
 });

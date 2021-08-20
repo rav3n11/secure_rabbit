@@ -10,35 +10,27 @@ generator client {
 enum Role {
   USER
   ADMIN
-  OWNER
 }
 
-enum EventTag {
-  ERROR
-  INFO
-}
-
-model Consumer {
+model mans {
   id              String  @id @default(uuid()) @db.Uuid
   role            Role    @default(USER)
   username        String  @unique
   email           String  @unique
   passwordHash    String
-  verified        Boolean @default(false)
-  howManyPerMonth Int     @default(0)
 
   // timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // relation declarations
-  logs     Log[]
-  sessions Session[]
+  events     events[]
+  sessions sessions[]
 }
 
-model Session {
+model sessions {
   id     String    @id @default(uuid()) @db.Uuid
-  userId String    @db.Uuid
+  manId String    @db.Uuid
   active Boolean
   exp    DateTime?
 
@@ -46,23 +38,20 @@ model Session {
   createdAt DateTime @default(now())
 
   // references
-  user Consumer @relation(fields: [userId], references: [id])
+  man mans @relation(fields: [manId], references: [id])
 }
 
-model Log {
+model events {
   id           String   @id @default(uuid()) @db.Uuid
-  ip           String
-  userId       String?   @db.Uuid
-  method       String
-  route        String
-  tag          EventTag @default(INFO)
-  statusCode   Int
-  useragent    String
-  responseTime Float
+  manId        String  @db.Uuid
+  title        String
+  startDate    DateTime
+  endDate      DateTime
+  public       Boolean  @default(false)
 
   // timestamps
   createdAt DateTime @default(now())
 
   // references
-  blame Consumer? @relation(fields: [userId], references: [id])
+  createdBy mans @relation(fields: [manId], references: [id])
 }

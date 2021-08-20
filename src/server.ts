@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import "express-async-errors";
 // @ts-ignore
 import zip from "express-easy-zip";
@@ -15,22 +15,31 @@ const app = express();
 
 app.use(cors());
 app.use(json());
-app.use(
-  morgan(morganFormat, {
-    stream: {
-      write,
-    },
-  })
-);
-app.use(tagRequest);
-app.use(zip());
-
+app.get("/", (req: Request, res: Response, next: NextFunction) => {
+  res.send({ root: "root" });
+})
+// app.use(
+//   morgan(morganFormat, {
+//     stream: {
+//       write,
+//     },
+//   })
+// );
+// app.use(tagRequest);
+// app.use(zip());
+//
+// app.use((req: Request, res: Response, next: NextFunction ) => {
+//   // @ts-ignore
+//   req["lala"]= "baba" ; req.lala  = 4
+// });
+//
+//
 app.use("/test", testRouter);
 app.use("/signup", signupRouter);
 app.use("/signin", signinRouter);
 app.use("/api", authMiddleWare, router);
-
-app.use(lastErrorHandler);
+//
+// app.use(lastErrorHandler);
 
 export async function start() {
   app.listen(process.env.PORT, function () {
@@ -39,6 +48,3 @@ export async function start() {
 }
 
 export const ExpressApp = app;
-
-// TODO encryption
-// TODO fucking fix the log fetch

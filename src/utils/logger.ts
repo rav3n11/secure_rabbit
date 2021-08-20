@@ -67,19 +67,19 @@ export async function write(message: string) {
     }
   );
 
-  const statusCode = Number.parseInt(messageBits[5]);
-
-  await db.log.create({
-    data: {
-      tag: statusCode >= 400 ? EventTag.ERROR : EventTag.INFO,
-      ip: messageBits[0],
-      userId: messageBits[1] !== "UNAUTHORIZED" ? messageBits[1] : undefined,
-      createdAt: messageBits[2],
-      method: messageBits[3],
-      route: messageBits[4],
-      statusCode: Number.parseInt(messageBits[5]),
-      useragent: messageBits[6],
-      responseTime: Number.parseFloat(messageBits[7]),
-    },
-  });
+  // const statusCode = Number.parseInt(messageBits[5]);
+  //
+  // await db.log.create({
+  //   data: {
+  //     tag: statusCode >= 400 ? EventTag.ERROR : EventTag.INFO,
+  //     ip: messageBits[0],
+  //     userId: messageBits[1] !== "UNAUTHORIZED" ? messageBits[1] : undefined,
+  //     createdAt: messageBits[2],
+  //     method: messageBits[3],
+  //     route: messageBits[4],
+  //     statusCode: Number.parseInt(messageBits[5]),
+  //     useragent: messageBits[6],
+  //     responseTime: Number.parseFloat(messageBits[7]),
+  //   },
+  // });
 }
