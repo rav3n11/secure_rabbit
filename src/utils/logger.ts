@@ -2,7 +2,6 @@ import { TokenIndexer } from "morgan";
 import { Request, Response } from "express";
 import fs from "fs";
 import { R } from "../R";
-import { EventTag } from "@prisma/client";
 import { db } from "../api";
 
 const chalk = require("chalk");
@@ -50,36 +49,20 @@ export function morganFormat(
     tokens["user-agent"](req, res),
     tokens["response-time"](req, res),
     "ms",
-  ].join("<--->");
+  ].join(" ");
 }
 
 export async function write(message: string) {
-  const messageBits = message.split("<--->");
+  Log.http(message);
 
   fs.appendFile(
-    `${R.values.logs.logsBaseDirectory}request/requests.log`,
-    messageBits.join(" "),
+    `${R.values.logs.logsBaseDirectory}req/req_logs.log`,
+    message,
     () => {
-      if (!fs.existsSync(`${R.values.logs.logsBaseDirectory}request/`))
-        fs.mkdirSync(`${R.values.logs.logsBaseDirectory}request/`, {
+      if (!fs.existsSync(`${R.values.logs.logsBaseDirectory}req/`))
+        fs.mkdirSync(`${R.values.logs.logsBaseDirectory}req/`, {
           recursive: true,
         });
     }
   );
-
-  // const statusCode = Number.parseInt(messageBits[5]);
-  //
-  // await db.log.create({
-  //   data: {
-  //     tag: statusCode >= 400 ? EventTag.ERROR : EventTag.INFO,
-  //     ip: messageBits[0],
-  //     userId: messageBits[1] !== "UNAUTHORIZED" ? messageBits[1] : undefined,
-  //     createdAt: messageBits[2],
-  //     method: messageBits[3],
-  //     route: messageBits[4],
-  //     statusCode: Number.parseInt(messageBits[5]),
-  //     useragent: messageBits[6],
-  //     responseTime: Number.parseFloat(messageBits[7]),
-  //   },
-  // });
 }

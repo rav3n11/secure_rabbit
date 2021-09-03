@@ -18,22 +18,15 @@ app.use(json());
 app.get("/", (req: Request, res: Response, next: NextFunction) => {
   res.send({ root: "root" });
 })
-// app.use(
-//   morgan(morganFormat, {
-//     stream: {
-//       write,
-//     },
-//   })
-// );
-// app.use(tagRequest);
-// app.use(zip());
-//
-// app.use((req: Request, res: Response, next: NextFunction ) => {
-//   // @ts-ignore
-//   req["lala"]= "baba" ; req.lala  = 4
-// });
-//
-//
+
+app.use(
+  morgan(morganFormat, {
+    stream: {
+      write,
+    },
+  })
+);
+
 app.use("/test", testRouter);
 app.use("/signup", signupRouter);
 app.use("/signin", signinRouter);

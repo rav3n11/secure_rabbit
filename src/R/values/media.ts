@@ -46,7 +46,7 @@ export enum fileSizeLimits {
  */
 export const uploadsBaseDirectory: string = path.join(
   os.homedir(),
-  `/SIRFiles/${process.env.NODE_ENV}/uploads/`
+  `/SECURERABBITFiles/${process.env.NODE_ENV}/uploads/`
 );
 
 export default {

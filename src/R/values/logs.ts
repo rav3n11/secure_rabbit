@@ -8,7 +8,7 @@ import os from "os";
  */
 export const logsBaseDirectory: string = path.join(
   os.homedir(),
-  `/SIRFiles/${process.env.NODE_ENV}/logs/`
+  `/SECURERABBITFiles/${process.env.NODE_ENV}/logs/`
 );
 
 export default {
